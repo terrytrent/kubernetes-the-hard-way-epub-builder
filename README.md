@@ -1,5 +1,11 @@
 # Kubernetes The Hard Way EPUB Builder
 
+[![CI](https://github.com/terrytrent/kubernetes-the-hard-way-epub-builder/actions/workflows/ci.yml/badge.svg)](https://github.com/terrytrent/kubernetes-the-hard-way-epub-builder/actions/workflows/ci.yml)
+[![Release automation](https://github.com/terrytrent/kubernetes-the-hard-way-epub-builder/actions/workflows/build-release.yml/badge.svg)](https://github.com/terrytrent/kubernetes-the-hard-way-epub-builder/actions/workflows/build-release.yml)
+[![Builder version](https://img.shields.io/badge/builder-v1.0.0-007ec6.svg)](CHANGELOG.md)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Generated content: CC BY-NC-SA 4.0](https://img.shields.io/badge/generated%20content-CC%20BY--NC--SA%204.0-lightgrey.svg)](CONTENT_LICENSE.md)
+
 An automated, security-conscious builder for producing readable EPUB editions
 of Kelsey Hightower's
 [Kubernetes The Hard Way](https://github.com/kelseyhightower/kubernetes-the-hard-way).
