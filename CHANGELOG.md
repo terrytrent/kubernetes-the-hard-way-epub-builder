@@ -7,6 +7,8 @@ release tracks upstream independently of the builder's semantic version.
 
 - Changed generated EPUBs and six-hour automation to track the exact current
   commit of upstream default branch `master` instead of upstream version tags.
+- Updated pinned checkout, artifact-download, and provenance-attestation Actions
+  to their current major releases.
 
 ## 1.0.0 - 2026-09-01
 
