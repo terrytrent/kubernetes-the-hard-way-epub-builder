@@ -16,8 +16,8 @@ of Kelsey Hightower's
 
 This repository is an **unofficial, noncommercial reading-format adaptation**.
 It is not a fork of the tutorial, a replacement for the upstream repository, or
-an official Kubernetes publication. Its purpose is to reproducibly transform a
-specific, tagged upstream release into a standards-compliant EPUB while keeping
+an official Kubernetes publication. Its purpose is to reproducibly transform
+the current upstream default-branch (`master`) commit into a standards-compliant EPUB while keeping
 the technical content, attribution, source identity, and license visible.
 
 - **Builder version:** 1.0.0
@@ -26,23 +26,23 @@ the technical content, attribution, source identity, and license visible.
 - **Supported platforms:** macOS, Linux, and Windows environments providing
   Python, Git, Make, and optional Docker or Java for EPUBCheck
 
-Generated books record the upstream repository, tag, and exact commit; retain
+Generated books record the upstream repository, branch, and exact commit; retain
 the upstream attribution and CC BY-NC-SA 4.0 license; remove redundant `Next:`
 links; preserve code and images; and use theme-safe styling in light and dark
 reading modes.
 
 ## What the builder does
 
-For a selected upstream tag, the builder:
+For the upstream `master` branch, the builder:
 
-1. Resolves the tag to its exact Git commit.
-2. Reads the ordered lab list from that tag's `README.md` instead of assuming a
+1. Fetches `origin/master` and resolves it to an exact Git commit.
+2. Reads the ordered lab list from that commit's `README.md` instead of assuming a
    filename pattern.
 3. Converts the introduction and every listed lab to semantic XHTML.
 4. Preserves fenced commands, tables, links, and validated raster images.
 5. Removes chapter-ending `Next:` links because the EPUB has a native table of
    contents.
-6. Adds the upstream repository, tag, commit, license, adaptation notice, and
+6. Adds the upstream repository, branch, commit, license, adaptation notice, and
    trademark disclaimer to the book.
 7. Packages the content directly as EPUB 3, without Calibre or another ebook
    library application.
@@ -63,12 +63,12 @@ Kubernetes cluster, or claim that historical tutorial releases remain current.
 | `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` | Contribution workflow and community expectations. |
 | `Makefile` | Local entry points for fetching, building, validating, and testing. |
 | `requirements-build.txt` | Hash-pinned Python Markdown build dependency. |
-| `scripts/build_epub.py` | Reads tagged upstream content and constructs EPUB 3 directly. |
+| `scripts/build_epub.py` | Reads the exact upstream `master` commit and constructs EPUB 3 directly. |
 | `scripts/validate_epub.py` | Applies archive, content, link, provenance, and active-content checks. |
 | `scripts/install_epubcheck.sh` | Downloads and verifies the pinned official EPUBCheck release. |
 | `scripts/run_epubcheck.sh` | Runs EPUBCheck with pinned Docker isolation or local Java fallback. |
 | `scripts/write_checksum.py` | Writes the portable adjacent SHA-256 file. |
-| `scripts/verify_provenance.py` | Verifies EPUB, checksum, tag, filename, and JSON provenance agreement. |
+| `scripts/verify_provenance.py` | Verifies EPUB, checksum, branch, filename, and JSON provenance agreement. |
 | `scripts/check_repo.py` | Applies dependency-free repository and documentation quality checks. |
 | `epub.css` | Reader-responsive styling for typography, code, and tables. |
 | `assets/cover.png` | AI-generated cover included in generated EPUBs. |
@@ -76,7 +76,7 @@ Kubernetes cluster, or claim that historical tutorial releases remain current.
 | `tests/test_builder.py` | Source conversion, table, link, image, and input-safety tests. |
 | `tests/test_security.py` | Clean and malicious EPUB regression fixtures. |
 | `.github/workflows/ci.yml` | Read-only test and fixture-build verification. |
-| `.github/workflows/build-release.yml` | Six-hour tag discovery, validation, attestation, and publishing. |
+| `.github/workflows/build-release.yml` | Six-hour upstream-main polling, validation, attestation, and publishing. |
 | `.github/dependabot.yml` | Scheduled Python and GitHub Actions dependency monitoring. |
 | `.github/CODEOWNERS` | Maintainer ownership for general and security-sensitive files. |
 | `.github/ISSUE_TEMPLATE/`, `.github/PULL_REQUEST_TEMPLATE.md` | Structured contribution intake. |
@@ -97,7 +97,7 @@ downloads are provided free of charge; payment or donations are not required.
 
 The generated EPUB is an adaptation distributed under the upstream project's
 [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 license](https://creativecommons.org/licenses/by-nc-sa/4.0/).
-It identifies the upstream repository, exact tag and commit, preserves
+It identifies the upstream repository, `master` branch and exact commit, preserves
 attribution, and describes the formatting changes.
 
 The cover artwork is AI-generated. Its stylized Kubernetes helm mark is used for
@@ -141,22 +141,22 @@ capabilities, and a non-root user.
 make
 ```
 
-The default command fetches upstream tags, selects the highest version tag, and
+The default command fetches upstream `master`, resolves its exact commit, and
 builds, validates, EPUBChecks, and checksums its EPUB. Outputs are written to
 `dist/` along with SHA-256 and JSON provenance files.
 
-To build a particular historical tag instead:
+To run the complete build explicitly:
 
 ```sh
 make fetch
-make checksum SOURCE_REF=1.18.6
+make checksum
 ```
 
 To construct only the EPUB, without running EPUBCheck or creating its checksum:
 
 ```sh
 make fetch
-make epub SOURCE_REF=1.18.6
+make epub
 ```
 
 Run the unit and malicious-EPUB regression suite with `make test`.
@@ -165,13 +165,13 @@ Run the unit and malicious-EPUB regression suite with `make test`.
 
 | Command | Result |
 | --- | --- |
-| `make` or `make latest` | Fetch and fully verify the highest upstream version tag. |
-| `make fetch` | Clone upstream if needed and refresh all tags. |
+| `make` or `make all` | Fetch and fully verify the current upstream `master` commit. |
+| `make fetch` | Clone upstream if needed and refresh `origin/master`. |
 | `make dependencies` | Create `.venv` and install hash-verified Python dependencies. |
-| `make epub SOURCE_REF=TAG` | Construct the EPUB for `TAG`. |
-| `make validate SOURCE_REF=TAG` | Build and run the strict project scanner. |
-| `make epubcheck SOURCE_REF=TAG` | Also run official EPUBCheck. |
-| `make checksum SOURCE_REF=TAG` | Complete all gates and write the checksum. |
+| `make epub` | Construct the EPUB from the fetched upstream `master` commit. |
+| `make validate` | Build and run the strict project scanner. |
+| `make epubcheck` | Also run official EPUBCheck. |
+| `make checksum` | Complete all gates and write the checksum. |
 | `make test` | Run unit and malicious-input regression tests. |
 
 For development or offline builds, override the source checkout and output:
@@ -179,13 +179,12 @@ For development or offline builds, override the source checkout and output:
 ```sh
 make checksum \
   SOURCE_REPO=/path/to/kubernetes-the-hard-way \
-  SOURCE_REF=1.18.6 \
   OUTPUT=dist/custom-name.epub
 ```
 
-The selected ref must be a real source tag. The builder resolves
-`refs/tags/TAG^{commit}` and records that immutable commit rather than building
-an unresolved branch name.
+The supplied source checkout must have `refs/remotes/origin/master`. The builder
+resolves that remote-tracking ref once and reads all content from the resulting
+immutable commit, so an upstream update cannot mix revisions within one build.
 
 `make clean` removes `build/` and `dist/`, but preserves `.venv` and the pinned
 tool cache.
@@ -195,12 +194,12 @@ tool cache.
 A successful build produces:
 
 ```text
-dist/kubernetes-the-hard-way-TAG.epub
-dist/kubernetes-the-hard-way-TAG.epub.sha256
-dist/kubernetes-the-hard-way-TAG.epub.provenance.json
+dist/kubernetes-the-hard-way-master.epub
+dist/kubernetes-the-hard-way-master.epub.sha256
+dist/kubernetes-the-hard-way-master.epub.provenance.json
 ```
 
-The book contains its repository URL, tag, exact source commit, source date,
+The book contains its repository URL, `master` branch, exact source commit, source date,
 attribution, license, and adaptation/trademark notices. The external provenance
 manifest records the source identity, builder commit, filename, and EPUB
 SHA-256. It describes the content and builder, not an ebook-library application.
@@ -208,7 +207,7 @@ SHA-256. It describes the content and builder, not an ebook-library application.
 Verify a downloaded artifact on a system with `sha256sum`:
 
 ```sh
-sha256sum --check kubernetes-the-hard-way-TAG.epub.sha256
+sha256sum --check kubernetes-the-hard-way-master.epub.sha256
 ```
 
 On macOS, compare the output of `shasum -a 256 FILE.epub` with the adjacent
@@ -225,13 +224,13 @@ change with the reader theme; all reflowable content does.
 
 ## Automated releases
 
-The GitHub Actions workflow checks upstream every six hours. It compares every
-upstream tag with existing `epub-TAG` releases, then builds, validates,
-EPUBChecks, checksums, attests, and publishes every missing edition. A manual
-run can build any specified tag immediately.
+The GitHub Actions workflow checks upstream every six hours. It compares the
+exact `origin/master` commit with the commit recorded in the stable `epub-master`
+release. When the commits differ, it builds, validates, EPUBChecks, checksums,
+attests, and replaces the release assets. A manual run can force a rebuild.
 
-Cross-repository tag pushes do not trigger workflows, so scheduled polling is
-used. Verified files cross into a separate publication job; only that job has
+Cross-repository branch updates do not trigger workflows here, so scheduled
+polling is used. Verified files cross into a separate publication job; only that job has
 release-write permission. Published EPUBs also receive a GitHub build-provenance
 attestation.
 
@@ -284,8 +283,8 @@ they are not payment for upstream content or for use of Kubernetes trademarks.
 
 ## Reporting problems
 
-For a build failure, include the operating system, Python version, requested
-tag, failing make target, and complete validator output. Report suspected
+For a build failure, include the operating system, Python version, upstream
+commit, failing make target, and complete validator output. Report suspected
 vulnerabilities privately through GitHub Security Advisories as described in
 [SECURITY.md](SECURITY.md), rather than attaching an untrusted EPUB publicly.
 

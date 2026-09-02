@@ -25,92 +25,40 @@ MAX_TOTAL_BYTES = 150 * 1024 * 1024
 MAX_COMPRESSION_RATIO = 200
 
 
-def legacy_main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("epub")
-    parser.add_argument("--tag", required=True)
-    args = parser.parse_args()
-    errors: list[str] = []
-
-    with ZipFile(args.epub) as archive:
-        names = archive.namelist()
-        if not names or names[0] != "mimetype":
-            errors.append("mimetype is not the first archive member")
-        if archive.read("mimetype") != b"application/epub+zip":
-            errors.append("invalid EPUB mimetype")
-
-        documents = {}
-        all_text: list[str] = []
-        code_blocks = 0
-        for name in names:
-            if name.endswith((".html", ".xhtml")):
-                root = ET.fromstring(archive.read(name))
-                ids = {node.get("id") for node in root.iter() if node.get("id")}
-                documents[name] = (root, ids)
-                all_text.append(" ".join(root.itertext()))
-                code_blocks += len(root.findall(".//x:pre/x:code", XHTML))
-
-        for name, (root, _) in documents.items():
-            for anchor in root.findall(".//x:a", XHTML):
-                href = anchor.get("href", "")
-                if not href or href.startswith(("http:", "https:", "mailto:")):
-                    continue
-                filename, marker, fragment = href.partition("#")
-                target = str(PurePosixPath(name).parent / filename) if filename else name
-                if target not in documents:
-                    errors.append(f"broken internal link: {name} -> {href}")
-                elif marker and fragment and fragment not in documents[target][1]:
-                    errors.append(f"broken fragment: {name} -> {href}")
-
-        text = " ".join(all_text)
-        if f"Source tag: {args.tag}" not in text:
-            errors.append("source tag is absent from book content")
-        if "Next:" in text:
-            errors.append("chapter-ending Next link remains")
-        if code_blocks == 0:
-            errors.append("no code blocks found")
-
-        opf_name = next((name for name in names if name.endswith(".opf")), None)
-        if not opf_name:
-            errors.append("package document is missing")
-        else:
-            opf = ET.fromstring(archive.read(opf_name))
-            if opf.find(".//opf:metadata/opf:meta[@name='cover']", OPF) is None:
-                errors.append("cover metadata is missing")
-
-    if errors:
-        raise SystemExit("EPUB validation failed:\n- " + "\n- ".join(errors))
-    print(f"Validated {args.epub} for upstream tag {args.tag}")
-
-
 def local_name(name: str) -> str:
     return name.rsplit("}", 1)[-1].lower()
 
 
-def read_tagged(source_repo: str, tag: str, path: str) -> str:
-    return subprocess.check_output(["git", "show", f"refs/tags/{tag}:{path}"], cwd=source_repo, text=True)
+def read_revision(source_repo: str, revision: str, path: str) -> str:
+    return subprocess.check_output(["git", "show", f"{revision}:{path}"], cwd=source_repo, text=True)
 
 
-def expected_source(source_repo: str, tag: str) -> tuple[int, set[str], str]:
-    readme = read_tagged(source_repo, tag, "README.md")
+def expected_source(source_repo: str, source_ref: str) -> tuple[int, set[str], str]:
+    if source_ref != "master":
+        raise ValueError("only the upstream default branch (master) is supported")
+    commit = subprocess.check_output(
+        ["git", "rev-parse", "refs/remotes/origin/master^{commit}"],
+        cwd=source_repo,
+        text=True,
+    ).strip()
+    readme = read_revision(source_repo, commit, "README.md")
     labs = readme.split("## Labs", 1)
     if len(labs) != 2:
-        raise ValueError("tagged README has no Labs section")
+        raise ValueError("upstream master README has no Labs section")
     documents = re.findall(r"\[[^]]+\]\((docs/[^)#]+\.md)(?:#[^)]+)?\)", labs[1])
     if not documents:
-        raise ValueError("tagged README lists no labs")
+        raise ValueError("upstream master README lists no labs")
     images: set[str] = set()
     for document in documents:
-        markdown = read_tagged(source_repo, tag, document)
+        markdown = read_revision(source_repo, commit, document)
         for target in re.findall(r"!\[[^]]*\]\(([^)]+)\)", markdown):
             path = target.partition("#")[0]
             if ":" not in path:
                 images.add(PurePosixPath(path).name)
-    commit = subprocess.check_output(["git", "rev-parse", f"refs/tags/{tag}^{{commit}}"], cwd=source_repo, text=True).strip()
     return len(documents), images, commit
 
 
-def validate_epub(epub: str, tag: str, source_repo: str | None = None) -> list[str]:
+def validate_epub(epub: str, source_ref: str, source_repo: str | None = None) -> list[str]:
     errors: list[str] = []
     try:
         archive = ZipFile(epub)
@@ -225,7 +173,7 @@ def validate_epub(epub: str, tag: str, source_repo: str | None = None) -> list[s
                     errors.append(f"broken fragment: {name} -> {href}")
 
         text = " ".join(all_text)
-        for required in (f"Source tag: {tag}", "This is an unofficial adaptation", "cover artwork is AI-generated", "Kubernetes® is a registered trademark", "not affiliated with, sponsored by, or endorsed by"):
+        for required in (f"Source branch: {source_ref}", "This is an unofficial adaptation", "cover artwork is AI-generated", "Kubernetes® is a registered trademark", "not affiliated with, sponsored by, or endorsed by"):
             if required not in text:
                 errors.append(f"required provenance/disclosure text is absent: {required}")
         if "Next:" in text:
@@ -254,7 +202,7 @@ def validate_epub(epub: str, tag: str, source_repo: str | None = None) -> list[s
 
         if source_repo:
             try:
-                lab_count, expected_images, commit = expected_source(source_repo, tag)
+                lab_count, expected_images, commit = expected_source(source_repo, source_ref)
                 if h1_count != lab_count + 2:
                     errors.append(f"chapter count mismatch: expected {lab_count + 2}, found {h1_count}")
                 archived_basenames = {PurePosixPath(name).name for name in names}
@@ -271,13 +219,13 @@ def validate_epub(epub: str, tag: str, source_repo: str | None = None) -> list[s
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("epub")
-    parser.add_argument("--tag", required=True)
+    parser.add_argument("--ref", required=True)
     parser.add_argument("--source-repo")
     args = parser.parse_args()
-    errors = validate_epub(args.epub, args.tag, args.source_repo)
+    errors = validate_epub(args.epub, args.ref, args.source_repo)
     if errors:
         raise SystemExit("EPUB validation failed:\n- " + "\n- ".join(errors))
-    print(f"Validated {args.epub} for upstream tag {args.tag}")
+    print(f"Validated {args.epub} for upstream branch {args.ref}")
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@ vulnerability.
 
 ## Threat model
 
-Upstream Markdown, images, Git tags, downloaded build tools, generated EPUB
+Upstream Markdown, images, the remote-tracking `master` ref, downloaded build tools, generated EPUB
 contents, and CI artifacts are treated as untrusted until verified. Upstream
 book commands are displayed as text and are never executed by this project.
 

@@ -50,9 +50,11 @@ class BuilderTests(unittest.TestCase):
                 "![tracking](https://attacker.invalid/pixel.png)", "unsafe.md"
             )
 
-    def test_tag_input_rejects_path_characters(self):
-        self.assertIsNotNone(build_epub.re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z._-]*", "1.18.6"))
-        self.assertIsNone(build_epub.re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z._-]*", "../main"))
+    def test_only_upstream_default_branch_is_supported(self):
+        with tempfile.TemporaryDirectory() as folder, self.assertRaisesRegex(
+            ValueError, "Only the upstream default branch"
+        ):
+            build_epub.resolve_source_revision(Path(folder), "1.18.6")
 
     def test_png_dimensions_are_checked_without_decoding(self):
         png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 8 + (10).to_bytes(4, "big") + (20).to_bytes(4, "big")
@@ -72,7 +74,7 @@ class BuilderTests(unittest.TestCase):
             arguments = dict(
                 body='<h1 id="book-introduction">Book</h1><pre><code>safe</code></pre>',
                 cover=cover,
-                source_ref="1.18.6",
+                source_ref="master",
                 revision="a" * 40,
                 source_date="2020-07-18T00:00:00Z",
                 source_epoch=1_595_030_400,

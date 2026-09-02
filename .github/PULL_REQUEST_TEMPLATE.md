@@ -13,7 +13,7 @@ Describe the problem and the outcome of this change.
 
 - [ ] `make quality`
 - [ ] `make test`
-- [ ] `make checksum SOURCE_REF=1.18.6` for packaging or release changes
+- [ ] `make checksum` for packaging or release changes
 
 List any additional manual verification and explain any unchecked item.
 

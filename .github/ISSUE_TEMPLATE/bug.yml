@@ -7,10 +7,11 @@ body:
     attributes:
       value: Do not disclose security vulnerabilities here. Use the private security-reporting link instead.
   - type: input
-    id: source-tag
+    id: source-commit
     attributes:
-      label: Upstream source tag
-      placeholder: 1.18.6
+      label: Upstream master commit
+      description: The full commit recorded in the EPUB provenance or build output
+      placeholder: 40-character Git commit
     validations:
       required: true
   - type: input

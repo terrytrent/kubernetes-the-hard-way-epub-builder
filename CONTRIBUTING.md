@@ -28,7 +28,7 @@ automation must also pass the complete fixture build:
 
 ```sh
 make fetch
-make checksum SOURCE_REF=1.18.6
+make checksum
 ```
 
 The completed build must pass the project scanner and official EPUBCheck without

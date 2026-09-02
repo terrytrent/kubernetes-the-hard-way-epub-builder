@@ -5,10 +5,11 @@ on:
     - cron: "17 */6 * * *"
   workflow_dispatch:
     inputs:
-      source_tag:
-        description: Upstream tag to build; blank selects the newest tag
+      force_rebuild:
+        description: Rebuild upstream master even when its commit is already published
         required: false
-        type: string
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -23,7 +24,8 @@ jobs:
     permissions:
       contents: read
     outputs:
-      has_tags: ${{ steps.missing.outputs.has_tags }}
+      has_changes: ${{ steps.upstream.outputs.has_changes }}
+      source_commit: ${{ steps.upstream.outputs.commit }}
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -31,52 +33,37 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Fetch upstream tags
+      - name: Fetch upstream default branch
         run: make fetch
 
-      - name: Find every unpublished upstream tag
-        id: missing
+      - name: Check for a new upstream master commit
+        id: upstream
         env:
-          REQUESTED_TAG: ${{ inputs.source_tag }}
+          FORCE_REBUILD: ${{ inputs.force_rebuild }}
         run: |
-          mkdir -p build
-          : > build/missing-tags.txt
-          if test -n "$REQUESTED_TAG"; then
-            candidates="$REQUESTED_TAG"
+          commit="$(git -C build/upstream rev-parse refs/remotes/origin/master^{commit})"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+          if test "$FORCE_REBUILD" = true; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          elif gh release view epub-master --json body --jq .body 2>/dev/null | grep -Fq "Source commit: $commit"; then
+            echo "Upstream master commit $commit is already published"
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
           else
-            candidates="$(git -C build/upstream tag --sort=version:refname)"
-          fi
-          for tag in $candidates; do
-            case "$tag" in
-              *[!0-9A-Za-z._-]*) echo "Unsupported tag characters: $tag" >&2; exit 1 ;;
-            esac
-            git -C build/upstream rev-parse --verify "refs/tags/$tag^{commit}"
-            if ! gh release view "epub-$tag" >/dev/null 2>&1; then
-              echo "$tag" >> build/missing-tags.txt
-            fi
-          done
-          if test -s build/missing-tags.txt; then
-            echo "has_tags=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_tags=false" >> "$GITHUB_OUTPUT"
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Install pinned, hash-verified tools
-        if: steps.missing.outputs.has_tags == 'true'
+        if: steps.upstream.outputs.has_changes == 'true'
         run: |
           make dependencies
           ./scripts/install_epubcheck.sh
 
-      - name: Build and validate every missing release
-        if: steps.missing.outputs.has_tags == 'true'
-        run: |
-          while IFS= read -r tag; do
-            make checksum SOURCE_REF="$tag"
-          done < build/missing-tags.txt
-          cp build/missing-tags.txt dist/missing-tags.txt
+      - name: Build and validate upstream master
+        if: steps.upstream.outputs.has_changes == 'true'
+        run: make checksum SOURCE_REF=master
 
       - name: Upload verified release candidates
-        if: steps.missing.outputs.has_tags == 'true'
+        if: steps.upstream.outputs.has_changes == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: verified-epub-releases
@@ -86,7 +73,7 @@ jobs:
 
   release:
     needs: build
-    if: needs.build.outputs.has_tags == 'true'
+    if: needs.build.outputs.has_changes == 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -107,12 +94,13 @@ jobs:
           path: dist
 
       - name: Verify transferred artifacts
+        env:
+          EXPECTED_SOURCE_COMMIT: ${{ needs.build.outputs.source_commit }}
         run: |
-          while IFS= read -r tag; do
-            epub="dist/kubernetes-the-hard-way-$tag.epub"
-            python3 scripts/verify_provenance.py \
-              "$epub" "$epub.provenance.json" "$epub.sha256" --tag "$tag"
-          done < dist/missing-tags.txt
+          epub="dist/kubernetes-the-hard-way-master.epub"
+          python3 scripts/verify_provenance.py \
+            "$epub" "$epub.provenance.json" "$epub.sha256" \
+            --ref master --commit "$EXPECTED_SOURCE_COMMIT"
 
       - name: Attest EPUB provenance
         uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3.0.0
@@ -124,12 +112,18 @@ jobs:
           TRADEMARK_URL: https://www.linuxfoundation.org/legal/tm-usage
         run: |
           cd dist
-          while IFS= read -r tag; do
-            epub="kubernetes-the-hard-way-$tag.epub"
-            checksum="$epub.sha256"
-            provenance="$epub.provenance.json"
-            commit="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["source_commit"])' "$provenance")"
-            gh release create "epub-$tag" "$epub" "$checksum" "$provenance" \
-              --title "Kubernetes The Hard Way — Unofficial EPUB $tag" \
-              --notes "Unofficial, noncommercial reading-format adaptation built from upstream tag $tag at commit $commit. Provided free of charge under CC BY-NC-SA 4.0. Not affiliated with, sponsored by, or endorsed by The Linux Foundation, CNCF, the Kubernetes project, or Kelsey Hightower. Kubernetes® is a registered trademark of The Linux Foundation in the United States and other countries. The cover artwork is AI-generated; its stylized Kubernetes helm mark is used for this noncommercial educational publication and makes no certification claim. Trademark guidance: $TRADEMARK_URL"
-          done < missing-tags.txt
+          epub="kubernetes-the-hard-way-master.epub"
+          checksum="$epub.sha256"
+          provenance="$epub.provenance.json"
+          commit="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["source_commit"])' "$provenance")"
+          notes="Unofficial, noncommercial reading-format adaptation built from upstream master. Source commit: $commit. Provided free of charge under CC BY-NC-SA 4.0. Not affiliated with, sponsored by, or endorsed by The Linux Foundation, CNCF, the Kubernetes project, or Kelsey Hightower. Kubernetes® is a registered trademark of The Linux Foundation in the United States and other countries. The cover artwork is AI-generated; its stylized Kubernetes helm mark is used for this noncommercial educational publication and makes no certification claim. Trademark guidance: $TRADEMARK_URL"
+          if gh release view epub-master >/dev/null 2>&1; then
+            gh release upload epub-master "$epub" "$checksum" "$provenance" --clobber
+            gh release edit epub-master \
+              --title "Kubernetes The Hard Way — Unofficial EPUB from master" \
+              --notes "$notes" --latest
+          else
+            gh release create epub-master "$epub" "$checksum" "$provenance" \
+              --title "Kubernetes The Hard Way — Unofficial EPUB from master" \
+              --notes "$notes" --latest
+          fi

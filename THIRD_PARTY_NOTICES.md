@@ -25,5 +25,5 @@ pinned versions and verifies downloads as documented in the source files.
 - Project and license information: https://adoptium.net/
 
 Generated EPUB content is separately governed by `CONTENT_LICENSE.md` and
-`NOTICE`. The upstream tutorial is not vendored in this repository; it is fetched
-from its tagged Git history during a build.
+`NOTICE`. The upstream tutorial is not vendored in this repository; the exact
+current default-branch (`master`) commit is fetched from its Git history during a build.

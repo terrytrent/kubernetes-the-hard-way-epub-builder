@@ -8,7 +8,7 @@ repository. They are intended for coding agents and automated contributors.
 - This is a standalone EPUB-build and release-automation project. It is not part
   of BiblioSleuth AI or any Calibre plugin. Do not read from, write to, or place
   project files in sibling repositories unless the maintainer explicitly asks.
-- The project converts tagged releases of Kelsey Hightower's
+- The project converts the current default branch (`master`) of Kelsey Hightower's
   `kelseyhightower/kubernetes-the-hard-way` repository into unofficial,
   noncommercial EPUB adaptations.
 - It changes presentation and packaging only. Do not rewrite, modernize, or
@@ -19,12 +19,12 @@ repository. They are intended for coding agents and automated contributors.
 
 ## Source fidelity and provenance
 
-- Build only from an explicit upstream tag resolved through
-  `refs/tags/TAG^{commit}`. Never silently substitute a branch, moving ref, or
-  untagged checkout.
-- Discover chapter order from the tagged upstream `README.md` Labs section. Do
+- Fetch `origin/master`, resolve `refs/remotes/origin/master^{commit}` exactly once,
+  and read every source file from that immutable commit. Never read different
+  files from a moving branch name during one build.
+- Discover chapter order from that commit's `README.md` Labs section. Do
   not assume that numeric filenames represent the complete or canonical order.
-- Generated EPUBs must identify the source repository, exact tag, exact commit,
+- Generated EPUBs must identify the source repository, `master` branch, exact commit,
   source date, license, adaptation, and trademark status in visible book text.
 - Keep the adjacent JSON provenance manifest and SHA-256 checksum synchronized
   with the produced EPUB. Provenance describes source and builder identity; do
@@ -68,7 +68,7 @@ members, CI artifacts, and downloaded tools as untrusted.
 - Maintain theme safety. Reflowable content must remain readable in light, dark,
   and reader-selected themes; do not force page foreground/background colors.
 - Validation fails closed. Never weaken or bypass a security check to make a new
-  upstream tag build. Investigate the input and add the narrowest safe handling.
+  upstream-main build. Investigate the input and add the narrowest safe handling.
 - Any security regression fix must include a malicious fixture or focused test
   that fails before the fix and passes afterward.
 - Keep EPUBCheck as an independent required release gate. Pin tool versions and
@@ -86,9 +86,10 @@ members, CI artifacts, and downloaded tools as untrusted.
   release job may receive the narrow write, identity-token, and attestation
   permissions needed to publish verified artifacts.
 - Preserve `persist-credentials: false` on checkout actions.
-- The scheduled workflow must detect and build every missing upstream tag, not
-  only the newest tag, and must transfer only fully verified release candidates
-  to the publishing job.
+- The scheduled workflow must compare upstream `master` with the exact commit in
+  the stable `epub-master` release and build only when it changes or a maintainer
+  explicitly forces a rebuild. It must transfer only fully verified release
+  candidates to the publishing job.
 
 ## Working practices
 
@@ -113,16 +114,16 @@ Use the smallest relevant command while iterating:
 ```sh
 make test
 make fetch
-make epub SOURCE_REF=1.18.6
-make validate SOURCE_REF=1.18.6
+make epub
+make validate
 ```
 
 Before handing off behavior, packaging, security, stylesheet, dependency, or
-workflow changes, run the complete local gate on a known fixture tag:
+workflow changes, run the complete local gate against fetched upstream `master`:
 
 ```sh
 make test
-make checksum SOURCE_REF=1.18.6
+make checksum
 ```
 
 The full gate must pass the project validator and official EPUBCheck with no
