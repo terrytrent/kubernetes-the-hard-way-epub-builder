@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Run unit and security tests
+        run: |
+          make quality
+          make test
+
+      - name: Fetch upstream fixture tag
+        run: make fetch
+
+      - name: Install pinned, hash-verified tools
+        run: |
+          make dependencies
+          ./scripts/install_epubcheck.sh
+
+      - name: Build and validate fixture release
+        run: make checksum SOURCE_REF=1.18.6

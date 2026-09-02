@@ -1,0 +1,44 @@
+body {
+  font-family: "Charis SIL", Georgia, serif;
+  line-height: 1.5;
+  margin: 0 5%;
+}
+
+h1, h2, h3, h4 {
+  font-family: "Avenir Next", "Helvetica Neue", sans-serif;
+  line-height: 1.2;
+  page-break-after: avoid;
+}
+
+h1 { border-bottom: 2px solid currentColor; padding-bottom: .25em; }
+h2 { border-bottom: 1px solid currentColor; padding-bottom: .15em; }
+blockquote {
+  background: transparent;
+  border-left: .3em solid currentColor;
+  margin: 1em 0;
+  padding: .5em 1em;
+}
+pre {
+  background: transparent !important;
+  border: 1px solid currentColor;
+  border-radius: .25em;
+  color: inherit !important;
+  font-family: "Liberation Mono", monospace;
+  font-size: .82em;
+  line-height: 1.35;
+  overflow-wrap: normal;
+  padding: .8em;
+  white-space: pre-wrap;
+}
+code {
+  background: transparent !important;
+  color: inherit !important;
+  font-family: "Liberation Mono", monospace;
+  font-size: .9em;
+}
+p code, li code { border-bottom: 1px dotted currentColor; padding: .08em .12em; }
+table { border-collapse: collapse; font-size: .88em; margin: 1em 0; width: 100%; }
+th, td { border: 1px solid currentColor; padding: .35em; text-align: left; }
+th { background: transparent; }
+.chapter-break { page-break-before: always; }
+.edition-note { font-size: .9em; }

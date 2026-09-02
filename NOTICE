@@ -1,0 +1,19 @@
+Kubernetes The Hard Way EPUB Builder
+
+Builder code and documentation are licensed under the Apache License 2.0.
+Builder version: 1.0.0
+
+Generated EPUB content is adapted from Kubernetes The Hard Way by Kelsey
+Hightower:
+https://github.com/kelseyhightower/kubernetes-the-hard-way
+
+The upstream written work and generated EPUB adaptations are distributed under
+Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International. Each
+EPUB identifies its exact upstream tag and commit and describes the adaptation.
+
+The AI-generated cover is distributed only as part of this noncommercial
+educational adaptation under CC BY-NC-SA 4.0. Kubernetes® is a registered
+trademark of The Linux Foundation. Trademark rights are not granted by the
+copyright licenses. This project is unofficial and is not affiliated with,
+sponsored by, or endorsed by The Linux Foundation, CNCF, the Kubernetes project,
+or Kelsey Hightower.

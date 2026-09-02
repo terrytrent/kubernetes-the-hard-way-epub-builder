@@ -1,0 +1,9 @@
+* @terrytrent
+
+/.github/workflows/ @terrytrent
+/requirements-build.txt @terrytrent
+/scripts/build_epub.py @terrytrent
+/scripts/validate_epub.py @terrytrent
+/scripts/verify_provenance.py @terrytrent
+/SECURITY.md @terrytrent
+/CONTENT_LICENSE.md @terrytrent

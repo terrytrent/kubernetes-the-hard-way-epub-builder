@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability privately
+    url: https://github.com/terrytrent/kubernetes-the-hard-way-epub-builder/security/advisories/new
+    about: Do not disclose suspected vulnerabilities in a public issue.
+  - name: Report a tutorial-content issue upstream
+    url: https://github.com/kelseyhightower/kubernetes-the-hard-way/issues
+    about: Technical corrections to Kubernetes The Hard Way belong upstream.
