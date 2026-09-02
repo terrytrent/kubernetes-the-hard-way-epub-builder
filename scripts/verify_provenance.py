@@ -15,7 +15,13 @@ SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
-def verify(epub: Path, provenance: Path, checksum: Path, expected_tag: str | None) -> None:
+def verify(
+    epub: Path,
+    provenance: Path,
+    checksum: Path,
+    expected_ref: str | None,
+    expected_commit: str | None = None,
+) -> None:
     errors: list[str] = []
     digest = hashlib.sha256(epub.read_bytes()).hexdigest()
     try:
@@ -25,7 +31,7 @@ def verify(epub: Path, provenance: Path, checksum: Path, expected_tag: str | Non
 
     required = {
         "schema_version", "builder_version", "title", "source_repository",
-        "source_tag", "source_commit", "source_commit_date", "builder_commit",
+        "source_branch", "source_commit", "source_commit_date", "builder_commit",
         "build_date_utc", "epub_filename", "epub_sha256", "license",
     }
     missing = required - data.keys()
@@ -34,12 +40,12 @@ def verify(epub: Path, provenance: Path, checksum: Path, expected_tag: str | Non
         errors.append("missing provenance fields: " + ", ".join(sorted(missing)))
     if extra:
         errors.append("unexpected provenance fields: " + ", ".join(sorted(extra)))
-    if data.get("schema_version") != 1:
+    if data.get("schema_version") != 2:
         errors.append("unsupported provenance schema_version")
     if data.get("source_repository") != SOURCE_REPOSITORY:
         errors.append("unexpected source repository")
-    if expected_tag is not None and data.get("source_tag") != expected_tag:
-        errors.append("source tag does not match requested release")
+    if expected_ref is not None and data.get("source_branch") != expected_ref:
+        errors.append("source branch does not match requested release")
     if data.get("epub_filename") != epub.name:
         errors.append("provenance filename does not match EPUB")
     recorded_digest = data.get("epub_sha256")
@@ -50,6 +56,8 @@ def verify(epub: Path, provenance: Path, checksum: Path, expected_tag: str | Non
     source_commit = data.get("source_commit")
     if not isinstance(source_commit, str) or not COMMIT_RE.fullmatch(source_commit):
         errors.append("source commit is not a full lowercase Git SHA")
+    elif expected_commit is not None and source_commit != expected_commit:
+        errors.append("source commit does not match the commit selected by the build job")
     if data.get("license") != "CC-BY-NC-SA-4.0":
         errors.append("unexpected content license")
 
@@ -70,9 +78,10 @@ def main() -> None:
     parser.add_argument("epub", type=Path)
     parser.add_argument("provenance", type=Path)
     parser.add_argument("checksum", type=Path)
-    parser.add_argument("--tag")
+    parser.add_argument("--ref")
+    parser.add_argument("--commit")
     args = parser.parse_args()
-    verify(args.epub, args.provenance, args.checksum, args.tag)
+    verify(args.epub, args.provenance, args.checksum, args.ref, args.commit)
     print(f"Verified release provenance for {args.epub}")
 
 

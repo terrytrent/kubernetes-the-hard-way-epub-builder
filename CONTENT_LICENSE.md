@@ -4,7 +4,7 @@ Generated EPUBs adapt *Kubernetes The Hard Way* by Kelsey Hightower and are
 distributed under the
 [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International](https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode)
 license (`CC-BY-NC-SA-4.0`). Each EPUB includes attribution, a link to the
-license, the upstream repository, exact source tag and commit, and a description
+license, the upstream repository, source branch and exact commit, and a description
 of the adaptation.
 
 The AI-generated cover in `assets/cover.png` is licensed for distribution as

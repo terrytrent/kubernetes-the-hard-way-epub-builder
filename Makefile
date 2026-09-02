@@ -1,23 +1,19 @@
 SOURCE_REPO ?= build/upstream
-SOURCE_REF ?= 1.18.6
+SOURCE_REF ?= master
 OUTPUT ?= dist/kubernetes-the-hard-way-$(SOURCE_REF).epub
 PYTHON := .venv/bin/python
 EPUBCHECK_VERSION := 5.3.0
 EPUBCHECK_DIR := .tools/epubcheck-$(EPUBCHECK_VERSION)
 EPUBCHECK_JAR := $(EPUBCHECK_DIR)/epubcheck.jar
-.DEFAULT_GOAL := latest
+.DEFAULT_GOAL := all
 
-.PHONY: latest fetch dependencies epub validate epubcheck checksum test quality clean
+.PHONY: all fetch dependencies epub validate epubcheck checksum test quality clean
 
-latest: fetch
-	@tag="$$(git -C "$(SOURCE_REPO)" tag --sort=-version:refname | head -n 1)"; \
-	test -n "$$tag" || { echo "No upstream tags found" >&2; exit 1; }; \
-	echo "Building latest upstream tag: $$tag"; \
-	$(MAKE) checksum SOURCE_REPO="$(SOURCE_REPO)" SOURCE_REF="$$tag"
+all: fetch checksum
 
 fetch:
 	@test -d "$(SOURCE_REPO)/.git" || git clone --filter=blob:none https://github.com/kelseyhightower/kubernetes-the-hard-way.git "$(SOURCE_REPO)"
-	git -C "$(SOURCE_REPO)" fetch --tags --force origin
+	git -C "$(SOURCE_REPO)" fetch --force origin master:refs/remotes/origin/master
 
 dependencies: .venv/.ready
 
@@ -30,7 +26,7 @@ epub: dependencies
 	$(PYTHON) scripts/build_epub.py --source-repo "$(SOURCE_REPO)" --source-ref "$(SOURCE_REF)" --output "$(OUTPUT)"
 
 validate: epub
-	python3 scripts/validate_epub.py "$(OUTPUT)" --tag "$(SOURCE_REF)" --source-repo "$(SOURCE_REPO)"
+	python3 scripts/validate_epub.py "$(OUTPUT)" --ref "$(SOURCE_REF)" --source-repo "$(SOURCE_REPO)"
 
 $(EPUBCHECK_JAR):
 	./scripts/install_epubcheck.sh
@@ -40,7 +36,7 @@ epubcheck: validate $(EPUBCHECK_JAR)
 
 checksum: epubcheck
 	python3 scripts/write_checksum.py "$(OUTPUT)"
-	python3 scripts/verify_provenance.py "$(OUTPUT)" "$(OUTPUT).provenance.json" "$(OUTPUT).sha256" --tag "$(SOURCE_REF)"
+	python3 scripts/verify_provenance.py "$(OUTPUT)" "$(OUTPUT).provenance.json" "$(OUTPUT).sha256" --ref "$(SOURCE_REF)"
 
 test:
 	python3 -m unittest discover -s tests -v

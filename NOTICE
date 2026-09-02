@@ -9,7 +9,7 @@ https://github.com/kelseyhightower/kubernetes-the-hard-way
 
 The upstream written work and generated EPUB adaptations are distributed under
 Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International. Each
-EPUB identifies its exact upstream tag and commit and describes the adaptation.
+EPUB identifies the upstream default branch (`master`) and exact commit and describes the adaptation.
 
 The AI-generated cover is distributed only as part of this noncommercial
 educational adaptation under CC BY-NC-SA 4.0. Kubernetes® is a registered

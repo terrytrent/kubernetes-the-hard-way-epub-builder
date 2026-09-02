@@ -12,7 +12,7 @@ assert SPEC.loader
 SPEC.loader.exec_module(validator)
 
 SAFE_TEXT = (
-    "Source tag: 1.18.6 Source commit: abc This is an unofficial adaptation "
+    "Source branch: master Source commit: abc This is an unofficial adaptation "
     "cover artwork is AI-generated Kubernetes® is a registered trademark "
     "not affiliated with, sponsored by, or endorsed by"
 )
@@ -44,7 +44,7 @@ class SecurityValidationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             epub = Path(folder) / "book.epub"
             make_epub(epub, **kwargs)
-            return validator.validate_epub(str(epub), "1.18.6")
+            return validator.validate_epub(str(epub), "master")
 
     def assert_rejected(self, phrase, **kwargs):
         errors = self.scan(**kwargs)

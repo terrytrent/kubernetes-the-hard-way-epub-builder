@@ -18,7 +18,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_URL = "https://github.com/kelseyhightower/kubernetes-the-hard-way"
 SOURCE_REPO = ROOT / "build" / "upstream"
-SOURCE_REF = "1.18.6"
+SOURCE_REF = "master"
 ACTIVE_SOURCE_PATTERNS = (
     r"<\s*(?:script|iframe|object|embed|form|input|button|textarea|select|link|meta|base|img|svg|math|style)\b",
     r"\bon[a-z]+\s*=",
@@ -34,6 +34,16 @@ def git_text(source_repo: Path, source_ref: str, path: str) -> str:
     return subprocess.check_output(
         ["git", "show", f"{source_ref}:{path}"], cwd=source_repo
     ).decode("utf-8")
+
+
+def resolve_source_revision(source_repo: Path, source_ref: str) -> str:
+    if source_ref != "master":
+        raise ValueError("Only the upstream default branch (master) is supported")
+    return subprocess.check_output(
+        ["git", "rev-parse", "refs/remotes/origin/master^{commit}"],
+        cwd=source_repo,
+        text=True,
+    ).strip()
 
 
 def source_documents(source_repo: Path, source_ref: str) -> list[str]:
@@ -124,7 +134,7 @@ def rewrite_links(text: str, source: Path) -> str:
 
 
 def source_markdown(source_repo: Path, source_ref: str, revision: str) -> str:
-    readme = git_text(source_repo, source_ref, "README.md")
+    readme = git_text(source_repo, revision, "README.md")
     readme = re.sub(r"<a rel=.+?</a><br\s*/?>", "", readme, flags=re.DOTALL)
     validate_source_safety(readme, "README.md")
     introduction = readme.split("## Labs", 1)[0]
@@ -142,11 +152,11 @@ def source_markdown(source_repo: Path, source_ref: str, revision: str) -> str:
         "## Edition source",
         "",
         f"- Repository: [{SOURCE_URL}]({SOURCE_URL})",
-        f"- Upstream tag: `{source_ref}`",
+        f"- Upstream branch: `{source_ref}`",
         f"- Commit: `{revision}`",
     ]
-    for document in source_documents(source_repo, source_ref):
-        text = git_text(source_repo, source_ref, document)
+    for document in source_documents(source_repo, revision):
+        text = git_text(source_repo, revision, document)
         validate_source_safety(text, document)
         text = re.sub(r"(?m)^Next:\s*\[[^]]+\]\([^)]+\)\s*$", "", text)
         text = rewrite_links(text, Path(document))
@@ -156,7 +166,7 @@ def source_markdown(source_repo: Path, source_ref: str, revision: str) -> str:
             f'<a id="{slug(document)}"></a>',
             text.strip(),
         ])
-    copyright_text = git_text(source_repo, source_ref, "COPYRIGHT.md")
+    copyright_text = git_text(source_repo, revision, "COPYRIGHT.md")
     copyright_text = re.sub(r"<a rel=.+?</a><br\s*/?>", "", copyright_text, flags=re.DOTALL)
     validate_source_safety(copyright_text, "COPYRIGHT.md")
     parts.extend([
@@ -170,7 +180,7 @@ def source_markdown(source_repo: Path, source_ref: str, revision: str) -> str:
         "(https://creativecommons.org/licenses/by-nc-sa/4.0/).",
         "",
         f"Upstream source: {SOURCE_URL}",
-        f"Source tag: {source_ref}",
+        f"Source branch: {source_ref}",
         f"Source commit: {revision}",
         "",
         "## Adaptation and trademark notice",
@@ -267,7 +277,7 @@ def write_epub(
     toc: list[tuple[str, str]],
 ) -> None:
     title = "Kubernetes The Hard Way — Unofficial EPUB Adaptation"
-    identifier = f"{SOURCE_URL}/tree/{source_ref}"
+    identifier = f"{SOURCE_URL}/tree/{revision}"
     modified = datetime.fromtimestamp(source_epoch, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     cover_suffix = cover.suffix.lower()
     cover_type = "image/png" if cover_suffix == ".png" else "image/jpeg"
@@ -330,8 +340,8 @@ def main() -> None:
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 
-    if not re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z._-]*", args.source_ref):
-        raise SystemExit("Source tag contains unsupported characters")
+    if args.source_ref != "master":
+        raise SystemExit("Only --source-ref master is supported")
 
     if args.cover and not args.cover.is_file():
         raise SystemExit(f"Cover image not found: {args.cover}")
@@ -342,11 +352,7 @@ def main() -> None:
         raise SystemExit(f"Upstream Git repository not found: {source_repo}")
     output = args.output or ROOT / "dist" / f"kubernetes-the-hard-way-{args.source_ref}.epub"
 
-    revision = subprocess.check_output(
-        ["git", "rev-parse", f"refs/tags/{args.source_ref}^{{commit}}"],
-        cwd=source_repo,
-        text=True,
-    ).strip()
+    revision = resolve_source_revision(source_repo, args.source_ref)
     source_date = subprocess.check_output(
         ["git", "show", "-s", "--format=%cI", revision], cwd=source_repo, text=True
     ).strip()
@@ -354,13 +360,13 @@ def main() -> None:
     build_dir.mkdir(exist_ok=True)
     images: dict[str, bytes] = {}
     image_paths = subprocess.check_output(
-        ["git", "ls-tree", "-r", "--name-only", args.source_ref, "docs/images"],
+        ["git", "ls-tree", "-r", "--name-only", revision, "docs/images"],
         cwd=source_repo,
         text=True,
     ).splitlines()
     for image_path in image_paths:
         relative = Path(image_path).relative_to("docs/images")
-        image_data = subprocess.check_output(["git", "show", f"{args.source_ref}:{image_path}"], cwd=source_repo)
+        image_data = subprocess.check_output(["git", "show", f"{revision}:{image_path}"], cwd=source_repo)
         validate_image_bytes(image_data, image_path)
         images[relative.as_posix()] = image_data
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -379,8 +385,8 @@ def main() -> None:
         ["git", "show", "-s", "--format=%ct", revision], cwd=source_repo, text=True
     ).strip())
     toc = [("book-introduction", "Kubernetes The Hard Way")]
-    for document in source_documents(source_repo, args.source_ref):
-        chapter = git_text(source_repo, args.source_ref, document)
+    for document in source_documents(source_repo, revision):
+        chapter = git_text(source_repo, revision, document)
         heading = re.search(r"(?m)^#\s+(.+?)\s*$", chapter)
         toc.append((slug(document), heading.group(1) if heading else Path(document).stem))
     toc.append(("license-and-attribution", "Copyright and attribution"))
@@ -393,11 +399,11 @@ def main() -> None:
         ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True, capture_output=True
     )
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "builder_version": (ROOT / "VERSION").read_text(encoding="utf-8").strip(),
         "title": "Kubernetes The Hard Way — Unofficial EPUB Adaptation",
         "source_repository": SOURCE_URL,
-        "source_tag": args.source_ref,
+        "source_branch": args.source_ref,
         "source_commit": revision,
         "source_commit_date": source_date,
         "builder_commit": builder_commit.stdout.strip() if builder_commit.returncode == 0 else "uncommitted",
