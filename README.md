@@ -117,7 +117,7 @@ and [Linux Foundation trademark guidelines](https://www.linuxfoundation.org/lega
 
 ### Requirements for building the EPUB
 
-- Python 3.10 or newer
+- Python 3.11 or newer
 - Git and `make`
 - Network access for the initial dependency installation and upstream clone;
   later builds can use the existing `.venv` and source checkout
